@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .weather-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            width: 380px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 25px;
+            color: #1e272e;
+            font-weight: 700;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        select {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #dcdde1;
+            font-size: 1rem;
+            outline: none;
+            background-color: #f7f9fa;
+            color: #2f3640;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 12px 20px;
+            background-color: #0984e3;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #0074d9;
+        }
+
+        .weather-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 14px;
+            border: 1px solid #e1e4e8;
+        }
+
+        .weather-result h2 {
+            font-size: 1.3rem;
+            color: #2f3640;
+            margin-bottom: 5px;
+        }
+
+        .temp-box {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #0984e3;
+            margin: 10px 0;
+        }
+
+        #condition {
+            font-size: 1.1rem;
+            color: #57606f;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .details {
+            font-size: 0.95rem;
+            color: #747d8c;
+            border-top: 1px solid #dfe4ea;
+            padding-top: 12px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #loading {
+            color: #747d8c;
+            font-style: italic;
+            margin-top: 15px;
+        }
+
+        .error {
+            color: #ff4757;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="weather-container">
+        <h1>Μετεωρολογική Εφαρμογή</h1>
+        
+        <div class="search-box">
+            <select id="citySelect">
+                <option value="athens">Αθήνα</option>
+                <option value="thessaloniki">Θεσσαλονίκη</option>
+                <option value="patras">Πάτρα</option>
+                <option value="heraklion">Ηράκλειο</option>
+                <option value="larissa">Λάρισα</option>
+            </select>
+            <button id="searchBtn">Αναζήτηση</button>
+        </div>
+
+        <div id="weatherResult" class="weather-result hidden">
+            <h2 id="cityName">--</h2>
+            <div class="temp-box">
+                <span id="temperature">--</span>°C
+            </div>
+            <p id="condition">--</p>
+            <div class="details">
+                <p>Άνεμος: <span id="windSpeed">--</span> km/h</p>
+            </div>
+        </div>
+        
+        <div id="loading" class="hidden">Φόρτωση δεδομένων...</div>
+        <div id="error" class="error hidden">Σφάλμα κατά τη φόρτωση των δεδομένων.</div>
+    </div>
+
+    <script>
+        const cities = {
+            athens: { name: "Αθήνα", lat: 37.9838, lon: 23.7275 },
+            thessaloniki: { name: "Θεσσαλονίκη", lat: 40.6401, lon: 22.9444 },
+            patras: { name: "Πάτρα", lat: 38.2466, lon: 21.7346 },
+            heraklion: { name: "Ηράκλειο", lat: 35.3387, lon: 25.1442 },
+            larissa: { name: "Λάρισα", lat: 39.6390, lon: 22.4195 }
+        };
+
+        const citySelect = document.getElementById('citySelect');
+        const searchBtn = document.getElementById('searchBtn');
+        const weatherResult = document.getElementById('weatherResult');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        const cityNameEl = document.getElementById('cityName');
+        const temperatureEl = document.getElementById('temperature');
+        const conditionEl = document.getElementById('condition');
+        const windSpeedEl = document.getElementById('windSpeed');
+
+        function getWeatherDescription(code) {
+            const weatherCodes = {
+                0: "Αίθριος Καιρός ☀️",
+                1: "Κυρίως Αίθριος 🌤️",
+                2: "Μερική Συννεφιά ⛅",
+                3: "Συννεφιά ☁️",
+                45: "Ομίχλη 🌫️",
+                51: "Ελαφρύ Ψιλόβροχο 🌧️",
+                61: "Βροχή 🌧️",
+                71: "Χιόνι 🌨️",
+                95: "Καταιγίδα ⛈️"
+            };
+            return weatherCodes[code] || "Άγνωστη κατάσταση";
+        }
+
+        async function fetchWeather() {
+            const selectedKey = citySelect.value;
+            const city = cities[selectedKey];
+
+            loading.classList.remove('hidden');
+            weatherResult.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,wind_speed_10m`);
+                
+                if (!response.ok) {
+                    throw new Error('Σφάλμα δικτύου');
+                }
+
+                const data = await response.json();
+                
+                cityNameEl.textContent = city.name;
+                temperatureEl.textContent = data.current.temperature_2m;
+                conditionEl.textContent = getWeatherDescription(data.current.weather_code);
+                windSpeedEl.textContent = data.current.wind_speed_10m;
+
+                loading.classList.add('hidden');
+                weatherResult.classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                loading.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        searchBtn.addEventListener('click', fetchWeather);
+        fetchWeather();
+    </script>
+</body>
+</html>
